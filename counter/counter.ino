@@ -48,7 +48,7 @@ void loop() {
         if (lastTime == -1l || time - lastTime >= 1000) {
 
             Serial.print("count (");
-            serial.print(time - lastTime);
+            Serial.print(time - lastTime);
             Serial.print("ms): ");
             Serial.println(count - lastCount);
 
