@@ -3,16 +3,16 @@ const byte geigerCounterPin = 2; // manually set up in a pull-down configuration
 void setup() {
     pinMode(geigerCounterPin, INPUT);
     attachInterrupt(digitalPinToInterrupt(geigerCounterPin), handle, RISING);
-    Serial.begin(19200);
+    Serial.begin(115200);
 }
 
 char buffer[256]; // for reading input from serial
 unsigned int bufferPos = 0;
 unsigned int mode = 0; // 0 = unset, 1 = interval, 2 = count
 
-unsigned volatile int count = 0;
-unsigned int lastCount = 0;
-unsigned long lastTime = -1l;
+volatile long count = 0;
+int lastCount = 0;
+long lastTime = -1l;
 
 void loop() {
 
@@ -43,7 +43,7 @@ void loop() {
 
     if (mode == 2) {
 
-        unsigned long time = millis();
+        long time = millis();
 
         if (lastTime == -1l || time - lastTime >= 1000) {
 
@@ -79,7 +79,7 @@ void handle() {
         }
 
         Serial.print("interval: ");
-        Serial.print(lastTime - time);
+        Serial.print(time - lastTime);
         Serial.println("ms");
 
         lastTime = time;
