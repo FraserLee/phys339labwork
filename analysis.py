@@ -45,7 +45,7 @@ def plot_histogram(data):
     plt.show()
 
 
-filename = 'data_count_2025_02_04-15_47_29.txt'
+filename = 'data/count_2025_02_04-15_55_24.txt'
 
 data = load_data(filename)
 plot_histogram(data)

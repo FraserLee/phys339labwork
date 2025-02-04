@@ -20,7 +20,7 @@ if arduino_port is None:
 
 
 
-file_path = f'data_{mode}_{time.strftime("%Y_%m_%d-%H_%M_%S")}.txt'
+file_path = f'data/{mode}_{time.strftime("%Y_%m_%d-%H_%M_%S")}.txt'
 file = open(file_path, 'w')
 def log(data):
     file.write(data.strip() + '\n')
