@@ -2,8 +2,8 @@ import serial
 import serial.tools.list_ports as lp
 import time
 
-MODE = 'counter'
-# MODE = 'interval'
+# mode = 'count'
+mode = 'interval'
 
 ports = lp.comports()
 arduino_port = None
@@ -20,32 +20,47 @@ if arduino_port is None:
 
 
 
-file_path = f'data_{MODE}_{time.strftime("%Y_%m_%d-%H_%M_%S")}.txt'
+file_path = f'data_{mode}_{time.strftime("%Y_%m_%d-%H_%M_%S")}.txt'
 file = open(file_path, 'w')
 def log(data):
-    file.write(data + '\n')
+    file.write(data.strip() + '\n')
     file.flush()
-    print('logged: ', data)
+    print('logged [', data.strip(), ']')
 
 
 
-buffer = []
-s = serial.Serial(arduino_port, 19200)
+buffer = ''
+mode_set = False
 
+s = serial.Serial()
 try:
-    # send the mode to the arduino
-    s.write(MODE.encode('utf-8'))
+    s.port = arduino_port
+    s.baudrate = 115200
+    s.open()
 
     # read back data
     while True:
         while s.in_waiting > 0:
-            buffer.append(s.read().decode('utf-8'))
+            piece = s.read()
+            try:
+                buffer += piece.decode('utf-8')
+            except:
+                print('read malformed data:', piece)
+            
+        if not mode_set:
+            s.write(bytes(mode + '\n', 'utf-8'))
+
         while '\n' in buffer:
             idx = buffer.index('\n')
-
-            packet = ''.join(buffer[:idx+1])
+            packet = ''.join(buffer[:idx+1]).strip()
             buffer = buffer[idx+1:]
-            log(packet)
+            
+            if packet.startswith(mode):
+                log(packet)
+            else:
+                print('received (but didn\'t log):', packet)
+                if 'mode set' in packet:
+                    mode_set = True
 
 except KeyboardInterrupt:
     file.close()
