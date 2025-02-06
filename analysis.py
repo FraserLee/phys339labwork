@@ -46,6 +46,9 @@ def plot_histogram(data):
 
 
 filename = 'data/count_2025_02_04-15_55_24.txt'
+import sys
+if len(sys.argv) > 1:
+    filename = sys.argv[1]
 
 data = load_data(filename)
 plot_histogram(data)
