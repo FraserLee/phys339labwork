@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import poisson, norm, chisquare
 
+
 def load_data(filename):
     values = []
     with open(filename, "r") as file:
@@ -10,39 +11,41 @@ def load_data(filename):
             if not line.startswith('count (1000ms): '):
                 print('discarding abnormal reading[', line, ']')
                 continue
-            
+
             values.append(int(line.split(':')[1].strip()))
+
     return np.array(values)
 
-def plot_histogram(data):
-    counts, bins, _ = plt.hist(data, bins='auto', alpha=0.6, label="Observed")
-
-    mean, std = np.mean(data), np.std(data)
-
-    # Poisson fit
-    poisson_x = np.arange(int(min(data)), int(max(data)) + 1)
-    poisson_y = poisson.pmf(poisson_x, mean) * len(data)
-    plt.plot(poisson_x, poisson_y, 'r-', label="Poisson fit")
-
-    # Gaussian fit
-    gauss_x = np.linspace(min(data), max(data), 100)
-    gauss_y = norm.pdf(gauss_x, mean, std) * len(data) * (bins[1] - bins[0])
-    plt.plot(gauss_x, gauss_y, 'g-', label="Gaussian fit")
-
-    # Error bars
-    errors = np.sqrt(counts)
-    plt.errorbar((bins[:-1] + bins[1:]) / 2, counts, yerr=errors, fmt='o', label="Error bars")
-
-    # Chi-square test
-    expected_counts = poisson.pmf(bins[:-1], mean) * len(data)
-    # chi2, p_value = chisquare(counts, expected_counts)
-    chi2, p_value = 0, 0
-    plt.title(f"Histogram (Mode 0: Counts per Interval)\nChi-square: {chi2:.2f}, p-value: {p_value:.3f}")
-
-    plt.xlabel("Counts per interval")
-    plt.ylabel("Frequency")
-    plt.legend()
-    plt.show()
+# def plot_histogram(data):
+#
+#     counts, bins, _ = plt.hist(data, bins='auto', alpha=0.6, label="Observed")
+#
+#     mean, std = np.mean(data), np.std(data)
+#
+#     # Poisson fit
+#     poisson_x = np.arange(int(min(data)), int(max(data)) + 1)
+#     poisson_y = poisson.pmf(poisson_x, mean) * len(data)
+#     plt.plot(poisson_x, poisson_y, 'r-', label="Poisson fit")
+#
+#     # Gaussian fit
+#     gauss_x = np.linspace(min(data), max(data), 100)
+#     gauss_y = norm.pdf(gauss_x, mean, std) * len(data) * (bins[1] - bins[0])
+#     plt.plot(gauss_x, gauss_y, 'g-', label="Gaussian fit")
+#
+#     # Error bars
+#     errors = np.sqrt(counts)
+#     plt.errorbar((bins[:-1] + bins[1:]) / 2, counts, yerr=errors, fmt='o', label="Error bars")
+#
+#     # Chi-square test
+#     expected_counts = poisson.pmf(bins[:-1], mean) * len(data)
+#     # chi2, p_value = chisquare(counts, expected_counts)
+#     chi2, p_value = 0, 0
+#     plt.title(f"Histogram (Mode 0: Counts per Interval)\nChi-square: {chi2:.2f}, p-value: {p_value:.3f}")
+#
+#     plt.xlabel("Counts per interval")
+#     plt.ylabel("Frequency")
+#     plt.legend()
+#     plt.show()
 
 
 filename = 'data/count_2025_02_04-15_55_24.txt'
@@ -51,4 +54,72 @@ if len(sys.argv) > 1:
     filename = sys.argv[1]
 
 data = load_data(filename)
-plot_histogram(data)
+print(len(data), 'data points loaded')
+num_bins = np.max(data) + 1
+
+
+
+# split the data into num_splits distinct sub-ranges, estimating the uncertainty
+# on each bin by the spread of the data in that sub-range
+
+num_splits = int(len(data) ** 0.5) # not sure if this is mathematically
+                                   # justified, but since we're estimating the
+                                   # uncertainty *of the mean*, results don't
+                                   # change with the number of splits
+print('sub-sections:', num_splits)
+
+observations = []
+for data in np.array_split(data, num_splits):
+
+    counts = np.zeros(num_bins)
+
+    for value in data:
+        assert type(value) == np.int64
+        assert value >= 0
+        assert value < num_bins
+        counts[value] += 1
+
+    normalised = counts / np.sum(counts)
+
+    observations.append(normalised)
+
+# plot the observed data, with error bars derived from the spread per sub-range
+confidences = [0.68, 0.95]
+colours = ['#2d494f', '#5f7c82']
+for i in range(len(confidences) - 1, -1, -1):
+    confidence = confidences[i]
+    observed_mean = np.mean(observations, axis=0)
+    observed_mean_uncertainty = np.std(observations, axis=0) / np.sqrt(num_splits)
+    observed_mean_uncertainty *= norm.ppf(0.5 + confidence / 2) - norm.ppf(0.5 - confidence / 2)
+
+    bar_width = 2 + 8 * (1 - confidence)
+
+    plt.errorbar(np.arange(num_bins), 
+                 observed_mean, 
+                 yerr=observed_mean_uncertainty, 
+                 elinewidth=bar_width,
+                 capsize=2,
+                 linestyle='None',
+                 color=colours[i],
+                 label=f"Observed Data ({confidence:.0%} confidence)")
+
+# fit a poisson distribution to the data, with mean taken from the total data
+poisson_x = np.arange(num_bins)
+poisson_y = poisson.pmf(poisson_x, np.mean(data))
+plt.plot(poisson_x, poisson_y, label="Poisson fit", color='#f2a900')
+
+# fit a gaussian distribution to the data, with mean and std taken from the total data
+mean, std = np.mean(data), np.std(data)
+gauss_x = np.linspace(0, num_bins, 1000)
+gauss_y = norm.pdf(gauss_x, mean, std)
+plt.plot(gauss_x, gauss_y, label="Gaussian fit", color='#de5823')
+
+plt.xlabel("Clicks per 1000ms")
+plt.ylabel("Normalised Probability (0-1)")
+
+# set x ticks to be integers
+plt.xticks(np.arange(0, num_bins, 1))
+
+plt.legend()
+plt.show()
+
