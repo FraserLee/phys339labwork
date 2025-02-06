@@ -2,8 +2,8 @@ import serial
 import serial.tools.list_ports as lp
 import time
 
-# mode = 'count'
-mode = 'interval'
+mode = 'count'
+# mode = 'interval'
 
 ports = lp.comports()
 arduino_port = None
