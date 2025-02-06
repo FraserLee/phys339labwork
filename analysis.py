@@ -55,9 +55,9 @@ if len(sys.argv) > 1:
 
 data = load_data(filename)
 print(len(data), 'data points loaded')
+
 num_bins = np.max(data) + 1
-
-
+x = np.unique(data)
 
 # split the data into num_splits distinct sub-ranges, estimating the uncertainty
 # on each bin by the spread of the data in that sub-range
@@ -69,21 +69,24 @@ num_splits = int(len(data) ** 0.5) # not sure if this is mathematically
 print('sub-sections:', num_splits)
 
 observations = []
-for data in np.array_split(data, num_splits):
 
-    counts = np.zeros(num_bins)
+for replica in np.array_split(data, num_splits):
 
-    for value in data:
-        assert type(value) == np.int64
-        assert value >= 0
-        assert value < num_bins
-        counts[value] += 1
+    # get the counts of values in the replica
+    counts = np.unique(replica, return_counts=True)
+    # print(', '.join(map(lambda x: f'{x:02}', counts[0])))
+    # print(', '.join(map(lambda x: f'{x:02}', counts[1])))
 
-    normalised = counts / np.sum(counts)
+    # set 0 for any missing values (present in x, but not in replica)
+    for i in range(len(x)):
+        if x[i] not in counts[0]:
+            counts = (np.insert(counts[0], i, x[i]), np.insert(counts[1], i, 0))
 
-    observations.append(normalised)
+    normalised_counts = (counts[0], counts[1] / sum(counts[1]))
+    observations.append(normalised_counts[1])
 
 fig, axs = plt.subplots(2)
+
 # draw black dotted line at 0
 axs[1].axhline(0, color='black', linestyle='--', linewidth=1)
 
@@ -102,9 +105,8 @@ for i in range(len(confidences) - 1, -1, -1):
 
     bar_width = 2 + 8 * (1 - confidence)
 
-    axs[0].errorbar(np.arange(num_bins), 
-                 observed_mean, 
-                 yerr=observed_mean_uncertainty, 
+    axs[0].errorbar(x, observed_mean,
+                 yerr=observed_mean_uncertainty,
                  elinewidth=bar_width,
                  capsize=2,
                  linestyle='None',
@@ -114,7 +116,7 @@ for i in range(len(confidences) - 1, -1, -1):
 residuals_zero, residuals_one = mean_and_uncertainty(0.68)
 
 # fit a poisson distribution to the data, with mean taken from the total data
-poisson_x = np.arange(num_bins)
+poisson_x = x
 poisson_y = poisson.pmf(poisson_x, np.mean(data))
 params = {'label': "Poisson fit", 'color': '#f2a900', 'linewidth': 1.5}
 axs[0].plot(poisson_x, poisson_y, **params)
@@ -123,12 +125,11 @@ axs[1].plot(poisson_x, (poisson_y - residuals_zero) / residuals_one, marker='o',
 # fit a gaussian distribution to the data, with mean and std taken from the total data
 mean, std = np.mean(data), np.std(data)
 # gauss_x = np.linspace(0, num_bins, 1000)
-gauss_x = np.arange(num_bins)
+gauss_x = x
 gauss_y = norm.pdf(gauss_x, mean, std)
 params = {'label': "Gaussian fit", 'color': '#de5823', 'linewidth': 1.5}
 axs[0].plot(gauss_x, gauss_y, **params)
-axs[1].plot(gauss_x, (gauss_y - residuals_zero) / residuals_one, marker='o', markersize=3,
-**params)
+axs[1].plot(gauss_x, (gauss_y - residuals_zero) / residuals_one, marker='o', markersize=3, **params)
 
 
 axs[1].set_xlabel("Clicks per 1000ms")
@@ -137,17 +138,24 @@ axs[1].set_ylabel("Curve Residuals (σ)")
 
 # set x ticks to be integers
 for ax in axs:
-    ax.set_xticks(np.arange(0, num_bins, 1))
-    ax.set_xticklabels(np.arange(0, num_bins, 1))
+    ax.set_xticks(x)
+    ax.set_xticklabels(map(str, x))
 
 axs[1].set_ylim(-5, 5)
 axs[1].set_yticklabels(map(lambda x: f"{int(x)}σ", axs[1].get_yticks()))
 
 axs[0].legend()
+
+# plt.title(f"Clicks per 1000ms\n{len(data)} data points split into {num_splits} replicas with {len(data) // num_splits} points each")
+axs[0].set_title(f"Clicks per 1000ms\n{len(data)} data points split into {num_splits} replicas with {len(data) // num_splits} points each",
+    fontsize=10)
+
 plt.show()
+
 
 
 # NOTES FROM Talking with Prof. Ryan
 # - Error bars are probably too big, check that out
-# - Don't normalise data, keep batch size and number of batches in the report
+# - Don't normalise data, keep batch size and number of batches ("Replicas") in the report
 # - Actually fit both Poisson and Gaussian distributions, give them a fighting chance
+# - Don't use datapoints for which we don't have a count
