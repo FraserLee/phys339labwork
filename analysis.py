@@ -23,14 +23,14 @@ def load_data(filename):
 #     mean, std = np.mean(data), np.std(data)
 #
 #     # Poisson fit
-#     poisson_x = np.arange(int(min(data)), int(max(data)) + 1)
-#     poisson_y = poisson.pmf(poisson_x, mean) * len(data)
-#     plt.plot(poisson_x, poisson_y, 'r-', label="Poisson fit")
+#     x = np.arange(int(min(data)), int(max(data)) + 1)
+#     poisson_y = poisson.pmf(x, mean) * len(data)
+#     plt.plot(x, poisson_y, 'r-', label="Poisson fit")
 #
 #     # Gaussian fit
-#     gauss_x = np.linspace(min(data), max(data), 100)
-#     gauss_y = norm.pdf(gauss_x, mean, std) * len(data) * (bins[1] - bins[0])
-#     plt.plot(gauss_x, gauss_y, 'g-', label="Gaussian fit")
+#     x = np.linspace(min(data), max(data), 100)
+#     gauss_y = norm.pdf(x, mean, std) * len(data) * (bins[1] - bins[0])
+#     plt.plot(x, gauss_y, 'g-', label="Gaussian fit")
 #
 #     # Error bars
 #     errors = np.sqrt(counts)
@@ -66,6 +66,7 @@ num_splits = int(len(data) ** 0.5) # not sure if this is mathematically
                                    # justified, but since we're estimating the
                                    # uncertainty *of the mean*, results don't
                                    # change with the number of splits
+num_splits = 3
 print('sub-sections:', num_splits)
 
 observations = []
@@ -82,8 +83,7 @@ for replica in np.array_split(data, num_splits):
         if x[i] not in counts[0]:
             counts = (np.insert(counts[0], i, x[i]), np.insert(counts[1], i, 0))
 
-    normalised_counts = (counts[0], counts[1] / sum(counts[1]))
-    observations.append(normalised_counts[1])
+    observations.append(counts[1])
 
 fig, axs = plt.subplots(2)
 
@@ -116,24 +116,30 @@ for i in range(len(confidences) - 1, -1, -1):
 residuals_zero, residuals_one = mean_and_uncertainty(0.68)
 
 # fit a poisson distribution to the data, with mean taken from the total data
-poisson_x = x
-poisson_y = poisson.pmf(poisson_x, np.mean(data))
+x = x
+# poisson_y = poisson.pmf(x, np.mean(data))
+
+import scipy.optimize as opt
+p_mean, p_scale = opt.curve_fit(lambda x, mean, scale: poisson.pmf(x, mean) * scale, x, observed_mean)[0]
+poisson_y = poisson.pmf(x, p_mean) * p_scale
+
 params = {'label': "Poisson fit", 'color': '#f2a900', 'linewidth': 1.5}
-axs[0].plot(poisson_x, poisson_y, **params)
-axs[1].plot(poisson_x, (poisson_y - residuals_zero) / residuals_one, marker='o', markersize=3, **params)
+axs[0].plot(x, poisson_y, **params)
+axs[1].plot(x, (poisson_y - residuals_zero) / residuals_one, marker='o', markersize=3, **params)
 
 # fit a gaussian distribution to the data, with mean and std taken from the total data
 mean, std = np.mean(data), np.std(data)
-# gauss_x = np.linspace(0, num_bins, 1000)
-gauss_x = x
-gauss_y = norm.pdf(gauss_x, mean, std)
+# x = np.linspace(0, num_bins, 1000)
+x = x
+gauss_mean, gauss_std, gauss_scale = opt.curve_fit(lambda x, mean, std, scale: norm.pdf(x, mean, std) * scale, x, observed_mean)[0]
+gauss_y = norm.pdf(x, gauss_mean, gauss_std) * gauss_scale
 params = {'label': "Gaussian fit", 'color': '#de5823', 'linewidth': 1.5}
-axs[0].plot(gauss_x, gauss_y, **params)
-axs[1].plot(gauss_x, (gauss_y - residuals_zero) / residuals_one, marker='o', markersize=3, **params)
+axs[0].plot(x, gauss_y, **params)
+axs[1].plot(x, (gauss_y - residuals_zero) / residuals_one, marker='o', markersize=3, **params)
 
 
 axs[1].set_xlabel("Clicks per 1000ms")
-axs[0].set_ylabel("Probability [0-1]")
+axs[0].set_ylabel("Number of Observations")
 axs[1].set_ylabel("Curve Residuals (σ)")
 
 # set x ticks to be integers
