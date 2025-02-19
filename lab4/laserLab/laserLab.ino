@@ -72,7 +72,7 @@ void loop() {
     stepInput = abs(stepInput);
     for(int i = 0; i < stepInput; i++){
       step();
-      Serial.print("PD Analog read: ")
+      Serial.print("PD Analog read: ");
       Serial.println(analogRead(inPin));
     }
     stepInput = 0;
