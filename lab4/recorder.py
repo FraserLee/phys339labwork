@@ -28,9 +28,6 @@ def log(data):
     print('logged [', data.strip(), ']')
 
 buffer = ''
-system_ready = False
-command_issued = False
-
 s = serial.Serial()
 try:
     s.port = arduino_port
@@ -48,9 +45,6 @@ try:
             except:
                 print('read malformed data:', piece)
 
-        if system_ready and not command_issued:
-            s.write(bytes(mode + '\n', 'utf-8'))
-
         while '\n' in buffer:
             idx = buffer.index('\n')
             packet = ''.join(buffer[:idx+1]).strip()
@@ -61,7 +55,9 @@ try:
             else:
                 print('received (but didn\'t log):', packet)
                 if 'Input a number of steps' in packet:
-                    system_ready = True
+                    time.sleep(1)
+                    print('sending 100')
+                    s.write(bytes('100\n', 'utf-8'))
 
 except KeyboardInterrupt:
     file.close()
