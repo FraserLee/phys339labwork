@@ -51,8 +51,7 @@ def plot(data, num_splits, plot = True):
     def mean_and_uncertainty(confidence):
         observed_mean = np.mean(observations, axis=0)
         observed_mean_uncertainty = np.std(observations, axis=0) / np.sqrt(num_splits)
-        observed_mean_uncertainty *= (norm.ppf(0.5 + confidence / 2) - norm.ppf(0.5 - confidence / 2)) / 2
-        print(confidence, norm.ppf(0.5 + confidence / 2) - norm.ppf(0.5 - confidence / 2))
+        observed_mean_uncertainty *= norm.ppf(0.5 + confidence / 2) - norm.ppf(0.5 - confidence / 2)) / 2
         return observed_mean, observed_mean_uncertainty
 
     fig, axs = None, None
