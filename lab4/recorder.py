@@ -28,6 +28,9 @@ def log(data):
     print('logged [', data.strip(), ']')
 
 buffer = ''
+system_ready = False
+command_issued = False
+
 s = serial.Serial()
 try:
     s.port = arduino_port
@@ -44,12 +47,21 @@ try:
                 buffer += piece.decode('utf-8')
             except:
                 print('read malformed data:', piece)
-            
+
+        if system_ready and not command_issued:
+            s.write(bytes(mode + '\n', 'utf-8'))
+
         while '\n' in buffer:
             idx = buffer.index('\n')
             packet = ''.join(buffer[:idx+1]).strip()
             buffer = buffer[idx+1:]
-            log(packet)
+
+            if packet.startswith('PD Analog read: '):
+                log(packet[len('PD Analog read: '):])
+            else:
+                print('received (but didn\'t log):', packet)
+                if 'Input a number of steps' in packet:
+                    system_ready = True
 
 except KeyboardInterrupt:
     file.close()
