@@ -2,8 +2,8 @@ import serial
 import serial.tools.list_ports as lp
 import time
 
-mode = 'transparent'
-# mode = 'polarised'
+# mode = 'transparent'
+mode = 'polarised'
 
 ports = lp.comports()
 arduino_port = None
@@ -56,8 +56,11 @@ try:
                 print('received (but didn\'t log):', packet)
                 if 'Input a number of steps' in packet:
                     time.sleep(1)
-                    print('sending 100')
-                    s.write(bytes('100\n', 'utf-8'))
+                    print('sending steps')
+                    if mode == 'transparent':
+                        s.write(bytes('100\n', 'utf-8'))
+                    else:
+                        s.write(bytes('400\n', 'utf-8'))
 
 except KeyboardInterrupt:
     file.close()
