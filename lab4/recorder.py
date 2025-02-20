@@ -4,6 +4,7 @@ import time
 
 # mode = 'transparent'
 mode = 'polarised'
+delayTime = 300000 # delay between stepping and reading from analogIn
 
 ports = lp.comports()
 arduino_port = None
@@ -20,7 +21,7 @@ if arduino_port is None:
 
 
 
-file_path = f'data/{mode}_{time.strftime("%Y_%m_%d-%H_%M_%S")}.txt'
+file_path = f'data/{mode}_{delayTime}_{time.strftime("%Y_%m_%d-%H_%M_%S")}.txt'
 file = open(file_path, 'w')
 def log(data):
     file.write(data.strip() + '\n')
@@ -58,11 +59,15 @@ try:
                     time.sleep(1)
                     print('sending steps')
                     if mode == 'transparent':
-                        s.write(bytes('100\n', 'utf-8'))
+                        s.write(bytes(f'100 {delayTime}\n', 'utf-8'))
                     else:
-                        s.write(bytes('400\n', 'utf-8'))
+                        s.write(bytes(f'400 {delayTime}\n', 'utf-8'))
+                if "done" in packet:
+                    exit()
 
 except KeyboardInterrupt:
+    pass
+finally:
     file.close()
     s.close()
     print('Exiting')

@@ -43,6 +43,7 @@ void setup() {
   for(int i = 0; i < 200; i++){
     step();
   }
+
   Serial.println("Input a number of steps to turn, negative to reverse:");
 }
 
@@ -66,15 +67,25 @@ void step(){
 void loop() {
   if(Serial.available()){
     int stepInput = Serial.parseInt();
+    long delayTime = Serial.parseInt();
     if(stepInput < 0) digitalWrite(dirPin, LOW);
     else digitalWrite(dirPin, HIGH);
     delayMicroseconds(dirDelay);
     stepInput = abs(stepInput);
     for(int i = 0; i < stepInput; i++){
       step();
+      if (delayTime > 16383) {
+        delay(delayTime / 1000);
+      } else if (delayTime > 2) {
+        delayMicroseconds(delayTime);
+      }
+      int data = analogRead(inPin);
       Serial.print("PD Analog read: ");
-      Serial.println(analogRead(inPin));
+      // Serial.print(delayTime);
+      // Serial.print(" ");
+      Serial.println(data);
     }
+    Serial.println("done");
     stepInput = 0;
   }
 }
