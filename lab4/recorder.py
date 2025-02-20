@@ -2,9 +2,9 @@ import serial
 import serial.tools.list_ports as lp
 import time
 
-# mode = 'transparent'
-mode = 'polarised'
-delayTime = 300000 # delay between stepping and reading from analogIn
+mode = 'transparent'
+# mode = 'polarised'
+delayTime = 10000 # delay between stepping and reading from analogIn
 
 ports = lp.comports()
 arduino_port = None
@@ -63,6 +63,8 @@ try:
                     else:
                         s.write(bytes(f'400 {delayTime}\n', 'utf-8'))
                 if "done" in packet:
+                    if mode == 'transparent':
+                        s.write(bytes(f'-100 0\n', 'utf-8'))
                     exit()
 
 except KeyboardInterrupt:
