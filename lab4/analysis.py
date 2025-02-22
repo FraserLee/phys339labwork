@@ -30,6 +30,8 @@ def fit_and_plot(
     x = np.linspace(0, data.shape[1], data.shape[1])
     mean = np.mean(data, axis=0)
     sigma = uncertainty(data, 0.68)
+    if len(data) == 1:
+        sigma = np.ones_like(mean)
 
     cf_x, cf_mean, cf_sigma = [], [], []
     for xi, meani, sigmai in zip(x, mean, sigma):
@@ -156,16 +158,16 @@ assert data.shape[1] == 400
 def f_polarisation(x, a, b, theta):
     return a * np.cos(2 * np.pi * x / 400 + theta) ** 2 + b
 
-(a, b, theta), chi_squared, rsquared = fit_and_plot(data, f_polarisation, True, False,
+(pol_a, pol_b, pol_theta), chi_squared, rsquared = fit_and_plot(data, f_polarisation, True, False,
     f'Intensity vs Angle of Polarising Filter\n{len(data)} repetitions',
     '$\\cos^2$',
     'Angle of Polarising Filter',
     'Photodiode Intensity\n[ADC reading]')
 
 # mod pi instead of 2pi, since that's the period of cos^2
-print(f'Fit parameters: a = {a}, b = {b}, theta = {theta % np.pi}')
+print(f'Fit parameters: a = {pol_a}, b = {pol_b}, theta = {pol_theta % np.pi}')
 
-angle = (-theta) % np.pi
+angle = (-pol_theta) % np.pi
 angle = 400 * angle / (2 * np.pi)
 print(f'Max is at {angle} and {angle + 200} steps')
 
@@ -248,6 +250,42 @@ print(f'Fit parameters: a = {a}, b = {b}, n_1 = {n_1}, n_2 = {n_2}')
 
 # ---- analysis part 3: sensitivity of polarisation reading to timing change ---
 
+data = {}
+for filename in os.listdir('data'):
+    if filename.startswith('polarised_'):
+        timing = int(filename.split('_')[1])
+        data[timing / 1e6] = np.loadtxt('data/' + filename)
+
+timings = list(data.keys())
+timings.sort()
+
+results = []
+
+for timing in timings:
+    (a, b, theta), _, r_squared = fit_and_plot(np.array([data[timing]]), f_polarisation, False, False, p0=[pol_a, pol_b, pol_theta])
+    results.append((a, b, theta % np.pi, r_squared))
+
+results = np.array(results)
+
+fig, axs = plt.subplots(len(results[0]), 1, sharex=True)
+
+for i in range(len(results[0])):
+    y = results[:, i]
+    axs[i].set_xscale('log')
+    axs[i].plot(timings, y, marker='o', markersize=3)
+    axs[i].set_ylabel(['Best fit for A', 'Best fit for B', 'Best fit for $\\theta$', 'R²'][i], fontsize=10)
 
 
+axs[-1].set_xlabel('Delay between Stepper Motor step and Photodiode reading [s]')
+
+fig.suptitle('Sensitivity of Malus\' Law Curve Fit to Read Timing')
+
+# set the aspect ratio
+fig.set_figwidth(10)
+fig.set_figheight(5)
+
+filename = 'timing'
+iter = 0
+while os.path.exists(f'{filename}_{iter}.png'): iter += 1
+plt.savefig(f'{filename}_{iter}.png')
 
