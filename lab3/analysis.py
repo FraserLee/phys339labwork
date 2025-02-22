@@ -133,7 +133,7 @@ def plot(data, num_splits, plot = True):
         text.append(("", 12))
 
         ommitted_vals = set(list(range(num_bins))).difference(set(x))
-        ommitted_text = ', '.join(list(map(str, ommitted_vals)) + ['≥' + str(num_bins)]) 
+        ommitted_text = ', '.join(list(map(str, ommitted_vals)) + ['≥' + str(num_bins)])
         ommitted_text = f"Note 1: Click counts [{ommitted_text}] were never observed, and have been ommitted from the plot, curve fits, and chi-square calculation."
         text.append((ommitted_text, 8))
 
@@ -158,7 +158,7 @@ def plot(data, num_splits, plot = True):
         fig.set_figwidth(10)
         fig.set_figheight(7)
 
-        
+
         # tune out y ticks on the residuals plot
         y_ticks = [-5, -3, -1, 0, 1, 3, 5]
         print(y_ticks)
@@ -174,7 +174,7 @@ def plot(data, num_splits, plot = True):
             filename = f'{filename_base}_{i}.png'
 
         plt.savefig(filename, dpi=300)
-        
+
     return chi_squared_poisson, chi_squared_gauss
 
 
@@ -207,7 +207,7 @@ if mode == 'single':
 
     num_splits = int(len(data) ** 0.4) # tends to get a good balance between
                                        # enough data points in each bin, and
-                                       # enough bins to estimate a good 
+                                       # enough bins to estimate a good
                                        # uncertainty
 
     plot(data, num_splits, plot = True)
@@ -228,7 +228,7 @@ for num_splits in range(1, len(data)):
         continue
     if xc < xmin:
         continue
-    
+
     print('num_splits:', num_splits)
     print('len(data):', len(data))
 
@@ -248,14 +248,14 @@ plt.plot(x, y2, label='χ² of best Gaussian fit', marker='o', markersize=3, col
 
 # draw a horizontal line at 1.39, most probable χ² value for 2 degrees of freedom
 plt.axhline(1.39, color='#f2a900', linestyle='--', linewidth=1)
-plt.text(len(data) - 10, 1.39 - 0.1, 
+plt.text(len(data) - 10, 1.39 - 0.1,
         'χ² = 1.39, most, probable χ² value\nfor 2 degrees of freedom',
         fontsize=8,
         horizontalalignment='right',
         verticalalignment='top')
 
 plt.axhline(2.37 + 0.5, color='#de5823', linestyle='--', linewidth=1)
-plt.text(len(data) - 10, 2.37 + 0.5, 
+plt.text(len(data) - 10, 2.37 + 0.5,
     'χ² = 2.37 most probable χ² value\nfor 3 degrees of freedom',
     fontsize=8,
     horizontalalignment='right',
