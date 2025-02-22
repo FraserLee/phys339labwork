@@ -127,7 +127,7 @@ def fit_and_plot(
             filename = re.sub(r'\W+', '', filename)
             iter = 0
             while os.path.exists(f'{filename}_{iter}.png'): iter += 1
-            plt.savefig(f'{filename}_{iter}.png')
+            plt.savefig(f'{filename}_{iter}.png', dpi=500)
 
         plt.close()
 
@@ -287,5 +287,5 @@ fig.set_figheight(5)
 filename = 'timing'
 iter = 0
 while os.path.exists(f'{filename}_{iter}.png'): iter += 1
-plt.savefig(f'{filename}_{iter}.png')
+plt.savefig(f'{filename}_{iter}.png', dpi=500)
 
