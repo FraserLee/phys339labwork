@@ -24,10 +24,10 @@ def fit_and_plot(
         ignore_x_vals=lambda _: False, # x values to ignore when fitting
         additional_plot=[], # additional curves to plot
         notes=[],
-        colour='#f2a900',
+        main_colour='#f2a900',
         vlines=[] # vertical lines to draw on the plot
     ):
-    x = np.linspace(0, data.shape[1], data.shape[1])
+    x = np.arange(data.shape[1])
     mean = np.mean(data, axis=0)
     sigma = uncertainty(data, 0.68)
     if len(data) == 1:
@@ -43,6 +43,16 @@ def fit_and_plot(
 
 
     popt, _ = opt.curve_fit(f, cf_x, cf_mean, sigma = cf_sigma, maxfev=10000, p0=p0)
+    # print(np.sqrt(np.diag(cov)))
+
+    # clever way to avoid correlation between parameters in single parameter
+    # error estimates: re-fit for each parameter
+    perr = []
+    for i in range(len(popt)):
+        f_i = lambda x, pi: f(x, *popt[:i], pi, *popt[i+1:])
+        _, cov_i = opt.curve_fit(f_i, cf_x, cf_mean, sigma = cf_sigma, maxfev=10000, p0=popt[i])
+        perr.append(np.sqrt(cov_i[0][0]))
+
 
     fit_y = f(cf_x, *popt)
     chi_squared = np.sum(((cf_mean - fit_y) ** 2) / (cf_sigma ** 2))
@@ -71,7 +81,7 @@ def fit_and_plot(
 
             axs[0].fill_between(x, mean - bar_height, mean + bar_height, color=colours[i], alpha=0.5, label=f"{confidence:.0%} confidence", edgecolor='none')
 
-        params = {'label': curve_name + " fit", 'color': colour, 'linewidth': 1.5}
+        params = {'label': curve_name + " fit", 'color': main_colour, 'linewidth': 1.5}
         axs[0].plot(x, fit_y, **params)
         axs[1].plot(x, (fit_y - mean) / sigma, marker='o', markersize=3, **params)
 
@@ -131,7 +141,8 @@ def fit_and_plot(
 
         plt.close()
 
-    return popt, chi_squared, rsquared
+    # return popt, chi_squared, rsquared
+    return zip(popt, perr), chi_squared, rsquared
 
 
 
@@ -158,7 +169,8 @@ assert data.shape[1] == 400
 def f_polarisation(x, a, b, theta):
     return a * np.cos(2 * np.pi * x / 400 + theta) ** 2 + b
 
-(pol_a, pol_b, pol_theta), chi_squared, rsquared = fit_and_plot(data, f_polarisation, True, False,
+# (pol_a, pol_b, pol_theta), chi_squared, rsquared = fit_and_plot(data, f_polarisation, True, False,
+((pol_a, pol_a_err), (pol_b, pol_b_err), (pol_theta, pol_theta_err)), chi_squared, rsquared = fit_and_plot(data, f_polarisation, True, False,
     f'Intensity vs Angle of Polarising Filter\n{len(data)} repetitions',
     '$\\cos^2$',
     'Angle of Polarising Filter',
@@ -199,36 +211,53 @@ def transmittance(theta_i, n_1, n_2):
     return t
 
 # from the Fresnel equations:
-def f(x, a, b, n_1, n_2):
+def f(x, a, b, n_ratio):
+    n_1 = 1
+    n_2 = n_ratio
     theta_i = x * 2 * np.pi / 400
     t1 = transmittance(theta_i, n_1, n_2) # transmittance from the air into the glass
     t2 = transmittance(theta_t(theta_i, n_1, n_2), n_2, n_1) # transmittance from the glass back into the air
     return a * t1 * t2  + b # ignores possibility for multiple internal reflections
 
-def f_rs(x, a, b, n_1, n_2):
+def f_rs(x, a, b, n_ratio):
+    n_1 = 1
+    n_2 = n_ratio
     theta_i = x * 2 * np.pi / 400
     return a * r_s(theta_i, n_1, n_2) + b
 
-def f_rp(x, a, b, n_1, n_2):
+def f_rp(x, a, b, n_ratio):
+    n_1 = 1
+    n_2 = n_ratio
     theta_i = x * 2 * np.pi / 400
     return a * r_p(theta_i, n_1, n_2) + b
 
 
 
 
-(a, b, n_1, n_2), chi_squared, rsquared = fit_and_plot(data, f, False, False, p0=[300, 100, 1, 1.5])
+((a, a_err), (b, b_err), (n_ratio, n_ratio_err)), chi_squared, rsquared = fit_and_plot(data, f, True, False, p0=[300, 100, 1.5])
+print('n2/n1 =', n_ratio, '±', n_ratio_err)
 
-f_t2_vals = f_rp(np.linspace(0, 100, 100), a, b, n_1, n_2)
-mrp = np.argmin(f_t2_vals) * 360 / 400
+mrp = np.argmin(f_rp(np.arange(100), a, b, n_ratio)) * 360 / 400
+# Approximation of error on the minimum:
+mrp_min = mrp
+mrp_max = mrp
+for bits in range(1 << 3):
+    a_ =       a       + a_err * ((bits & 1) * 2 - 1)
+    b_ =       b       + b_err * ((bits >> 1 & 1) * 2 - 1)
+    n_ratio_ = n_ratio + n_ratio_err * ((bits >> 2 & 1) * 2 - 1)
+    mrp_ = np.argmin(f_rp(np.arange(100), a_, b_, n_ratio_)) * 360 / 400
+    if mrp_ < mrp_min: mrp_min = mrp_
+    if mrp_ > mrp_max: mrp_max = mrp_
+mrp_err = (mrp_max - mrp_min) / 2
 
-(a, b, n_1, n_2), chi_squared, rsquared = fit_and_plot(data, f, True, False,
+fit_and_plot(data, f, True, False,
         title = f'Transmittance as a function of Incident Angle\n{len(data)} repetitions',
         curve_name = 'Fresnel Equation Total Transmittance',
         xlabel = 'Angle between Laser and Glass Slide Normal',
         ylabel = 'Photodiode Intensity\n[ADC reading]',
-        p0=[a, b, n_1, n_2],
+        p0=[a, b, n_ratio],
         ignore_x_vals=lambda x: x > 83 * 400 / 360,
-        colour='#FAA916',
+        main_colour='#FAA916',
         additional_plot = [
             (f_rs, 'S-Polarised Reflectivity (scaled)', '#EA638C'),
             (f_rp, 'P-Polarised Reflectivity (scaled)', '#B33C86'),
@@ -238,15 +267,16 @@ mrp = np.argmin(f_t2_vals) * 360 / 400
             " allowed an internal reflection to pass out of the side of the glass",
             " slide and into the photodiode.",
             "",
-            "Best fit with $\\frac{n_2}{n_1} = " + f"{n_2 / n_1:.2f}$, predicting a minimum $R_p$ at {mrp}°"
+            "Best fit with $\\frac{n_2}{n_1} = " + f"{n_ratio:.2f} \\pm {n_ratio_err:.2f}$",
+            "Predicting a minimum reflectivity at $\\theta = " + f"{mrp:.2f}° \\pm {mrp_err:.2f}°$"
         ],
         vlines=[
-            lambda popt: np.argmin(f_rp(np.linspace(0, 100, 100), *popt))
+            lambda popt: np.argmin(f_rp(np.arange(100), *popt))
         ]
     )
 
 
-print(f'Fit parameters: a = {a}, b = {b}, n_1 = {n_1}, n_2 = {n_2}')
+# print(f'Fit parameters: a = {a}, b = {b}, n_1 = {n_1}, n_2 = {n_2}')
 
 # ---- analysis part 3: sensitivity of polarisation reading to timing change ---
 
@@ -262,7 +292,7 @@ timings.sort()
 results = []
 
 for timing in timings:
-    (a, b, theta), _, r_squared = fit_and_plot(np.array([data[timing]]), f_polarisation, False, False, p0=[pol_a, pol_b, pol_theta])
+    ((a, a_err), (b, b_err), (theta, theta_err)), _, r_squared = fit_and_plot(np.array([data[timing]]), f_polarisation, False, False, p0=[pol_a, pol_b, pol_theta])
     results.append((a, b, theta % np.pi, r_squared))
 
 results = np.array(results)
@@ -273,12 +303,12 @@ for i in range(len(results[0])):
     y = results[:, i]
     axs[i].set_xscale('log')
     axs[i].plot(timings, y, marker='o', markersize=3)
-    axs[i].set_ylabel(['Best fit for A', 'Best fit for B', 'Best fit for $\\theta$', 'R²'][i], fontsize=10)
+    axs[i].set_ylabel(['Best fit for A', 'Best fit for B', 'Best fit for $\\theta_0$', 'R²'][i], fontsize=10)
 
 
 axs[-1].set_xlabel('Delay between Stepper Motor step and Photodiode reading [s]')
 
-fig.suptitle('Sensitivity of Malus\' Law Curve Fit to Read Timing')
+fig.suptitle('Sensitivity of Malus\' Law Curve Fit to Read Timing\nBest fit for $A + B \\cos^2(\\theta + \\theta_0)$ and $R^2$ vs Delay Time', fontsize=12)
 
 # set the aspect ratio
 fig.set_figwidth(10)
