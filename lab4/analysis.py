@@ -267,7 +267,7 @@ fit_and_plot(data, f, True, False,
             " slide and into the photodiode.",
             "",
             "Best fit with $\\frac{n_2}{n_1} = " + f"{n_ratio:.2f} \\pm {n_ratio_err:.2f}$",
-            "Predicting a minimum reflectivity at $\\theta = " + f"{mrp:.2f}° \\pm {mrp_err:.2f}°$"
+            "Predicting a minimum P-Reflectivity at $\\theta = " + f"{mrp:.1f}° \\pm {mrp_err:.1f}°$"
         ],
         vlines=[
             lambda popt: np.argmin(f_rp(np.arange(100), *popt))
