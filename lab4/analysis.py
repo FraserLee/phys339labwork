@@ -169,7 +169,6 @@ assert data.shape[1] == 400
 def f_polarisation(x, a, b, theta):
     return a * np.cos(2 * np.pi * x / 400 + theta) ** 2 + b
 
-# (pol_a, pol_b, pol_theta), chi_squared, rsquared = fit_and_plot(data, f_polarisation, True, False,
 ((pol_a, pol_a_err), (pol_b, pol_b_err), (pol_theta, pol_theta_err)), chi_squared, rsquared = fit_and_plot(data, f_polarisation, True, False,
     f'Intensity vs Angle of Polarising Filter\n{len(data)} repetitions',
     '$\\cos^2$',
@@ -234,7 +233,7 @@ def f_rp(x, a, b, n_ratio):
 
 
 
-((a, a_err), (b, b_err), (n_ratio, n_ratio_err)), chi_squared, rsquared = fit_and_plot(data, f, True, False, p0=[300, 100, 1.5])
+((a, a_err), (b, b_err), (n_ratio, n_ratio_err)), chi_squared, rsquared = fit_and_plot(data, f, False, False, p0=[300, 100, 1.5])
 print('n2/n1 =', n_ratio, '±', n_ratio_err)
 
 mrp = np.argmin(f_rp(np.arange(100), a, b, n_ratio)) * 360 / 400
